@@ -56,12 +56,16 @@ def create_sub_matrices(hdul, sources):
         # Define min and max coords
         min_coords = min_max_coords[i][0]
         max_coords = min_max_coords[i][1] + 1
-        # Mask of labels
-        mask = sources.data[min_coords[0]:max_coords[0],
-                            min_coords[1]:max_coords[1]]
-        # Only take labels of current source and factor it against the intensities
-        source_intensities.append((mask == i+1) * data[min_coords[0]:max_coords[0],
-                                                       min_coords[1]:max_coords[1]])
+        # Get intensity matrix
+        mat = data[min_coords[0]:max_coords[0], min_coords[1]:max_coords[1]]
+        if np.sum(np.isnan(mat)) == 0:
+            # Mask of labels using source matrix
+            mask = sources.data[min_coords[0]:max_coords[0],
+                                min_coords[1]:max_coords[1]]
+            # Only take labels of current source and factor it against the intensities
+            source_intensities.append((mask == i+1) * mat)
+        else:
+            source_intensities.append(mat * 0)
     return np.column_stack([
         [hdul.header['OBJECT'] + '_' + str(l) for l in range(len(min_max_coords))],
         min_max_coords[:, 0, :],
@@ -71,9 +75,12 @@ def create_sub_matrices(hdul, sources):
 
 
 def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv):
-    if mat.size == 0:
-        return (label, ['NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN',
-                        'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN'])
+    # Get sum intensity
+    sum_mat = np.sum(mat)
+    
+    if mat.size == 0 or sum_mat == 0:
+        return (label, [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+                        np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
 
     conv = pi * pow((hdul.header['BMAJ'] * 3600), 2) / (4 * log(2)) 
     w = WCS(hdul.header)
@@ -82,11 +89,7 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
     # Used to fit gaussian and to calculate norm center of mass
     y, x = np.mgrid[:mat.shape[0], :mat.shape[1]]
     
-    # Get num pixels
-    total_pixels = np.sum(mat > 0)
-    
-    # Get sum intensity
-    sum_mat = np.sum(mat)
+    # Integrated intensity
     integrated_intensity = conv * sum_mat
     
     # Brightest pixel (account for local submatrix coordinates)
@@ -109,8 +112,9 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
     # Define parameters of gaussian
     x_m = center_of_mass_x - min_coords[0]
     y_m = center_of_mass_y - min_coords[1]
-    x_s = max_coords[0] - min_coords[0]
-    y_s = max_coords[1] - min_coords[1]
+    x_s = max_coords[0] - min_coords[0] + 1
+    y_s = max_coords[1] - min_coords[1] + 1
+    total_pixels = np.sum(mat > 0)
     
     # Define model
     mod = Gaussian2D(
@@ -140,8 +144,8 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
         return (label, [total_pixels, x_s, y_s,
                         integrated_intensity, brightest_pixel, brightest_pixel_x, brightest_pixel_y,
                         float(brightest_pixel_RA), float(brightest_pixel_DEC), center_of_mass_x, center_of_mass_y,
-                        center_of_mass_RA, center_of_mass_DEC, 'NaN', 'NaN', 'NaN', 'NaN',
-                        'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN', 'NaN']
+                        center_of_mass_RA, center_of_mass_DEC, np.nan, np.nan, np.nan, np.nan,
+                        np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
        )
     
     # best_fit_gauss = fitter(mod, x, y, mat) # Fit model
@@ -247,12 +251,12 @@ def main():
              ]
                           
     # Save the RDDs as one (coaslesce=1) csv 
-    if os.path.isdir(out + 'catalogue_v3'):
-        shutil.rmtree(out + 'catalogue_v3')
+    if os.path.isdir(out + 'catalogue_v4'):
+        shutil.rmtree(out + 'catalogue_v4')
 
 
     start = time.time()
-    catalogue_data.map(lambda c: toCSVLine(c[0], c[1])).coalesce(1, shuffle = True).saveAsTextFile(out + 'catalogue_v3')
+    catalogue_data.map(lambda c: toCSVLine(c[0], c[1])).coalesce(1, shuffle = True).saveAsTextFile(out + 'catalogue_v4')
     print('Execution time:', ((time.time()-start) / 60 ), 'minutes')
     
     # Exit and stop the sparkcontext
