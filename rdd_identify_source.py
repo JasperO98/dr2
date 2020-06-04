@@ -78,7 +78,7 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
     # Get sum intensity
     sum_mat = np.sum(mat)
     
-    if mat.size == 0 or sum_mat == 0:
+    if mat.size == 0 or sum_mat == 0.0:
         return (label, [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
                         np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
 
