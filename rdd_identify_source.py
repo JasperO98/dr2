@@ -30,25 +30,25 @@ warnings.filterwarnings("ignore")
 def create_sub_matrices(hdul, sources):
     data = hdul.data
     min_max_coords = np.full((sources.max_label, 2, 2), ((np.inf, np.inf), (-np.inf, -np.inf)))
-    for c in range(np.shape(data)[1]): # x / cols
-        for r in range(np.shape(data)[0]): # y / rows
-            lab = sources.data[r, c] - 1  # Label of pixel row, col
+    for i in range(np.shape(data)[0]):
+        for j in range(np.shape(data)[1]):
+            lab = sources.data[i, j] - 1  # Label of pixel i,j
             if lab + 1 != 0:
                 # Define min max coords
                 min_coords = min_max_coords[lab][0]
                 max_coords = min_max_coords[lab][1]
-                # Check if smallest y / row coordinate
-                if r < min_coords[0]:
-                    min_coords[0] = r
-                # Check if biggest y / row coordinate
-                elif r > max_coords[0]:
-                    max_coords[0] = r
-                # Check if smallest x / col coordinate
-                if c < min_coords[1]:
-                    min_coords[1] = c
-                # Check if biggest x / col coordinate
-                elif c > max_coords[1]:
-                    max_coords[1] = c
+                # Check if smallest x coordinate
+                if i < min_coords[0]:
+                    min_coords[0] = i
+                # Check if biggest x coordinate
+                elif i > max_coords[0]:
+                    max_coords[0] = i
+                # Check if smallest y coordinate
+                if j < min_coords[1]:
+                    min_coords[1] = j
+                # Check if biggest y coordinate
+                elif j > max_coords[1]:
+                    max_coords[1] = j
     
     min_max_coords = min_max_coords.astype(int)
     source_intensities = []
@@ -57,8 +57,7 @@ def create_sub_matrices(hdul, sources):
         min_coords = min_max_coords[i][0]
         max_coords = min_max_coords[i][1] + 1
         # Get intensity matrix
-        mat = data[min_coords[0]:max_coords[0], min_coords[1]:max_coords[1]] # r1 to r2, c1 to c2
-        # Skip objects at the edge
+        mat = data[min_coords[0]:max_coords[0], min_coords[1]:max_coords[1]]
         if np.sum(np.isnan(mat)) == 0:
             # Mask of labels using source matrix
             mask = sources.data[min_coords[0]:max_coords[0],
@@ -67,7 +66,6 @@ def create_sub_matrices(hdul, sources):
             source_intensities.append((mask == i+1) * mat)
         else:
             source_intensities.append(mat * 0)
-            
     return np.column_stack([
         [hdul.header['OBJECT'] + '_' + str(l) for l in range(len(min_max_coords))],
         min_max_coords[:, 0, :],
@@ -85,7 +83,7 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
                         np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
 
     conv = pi * pow((hdul.header['BMAJ'] * 3600), 2) / (4 * log(2)) 
-    W = WCS(hdul.header)
+    w = WCS(hdul.header)
     
     # matrix filled with index values so first row for x = [0, 1, 2, ...] and y = [0, 0, 0, ..]
     # Used to fit gaussian and to calculate norm center of mass
@@ -95,24 +93,27 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
     integrated_intensity = conv * sum_mat
     
     # Brightest pixel (account for local submatrix coordinates)
-    brightest_pixel_y, brightest_pixel_x = np.unravel_index(np.argmax(mat, axis=None), mat.shape)
-    brightest_pixel = mat[(brightest_pixel_y, brightest_pixel_x)]
-    brightest_pixel_y += min_coords[0] # Add the min row/ y coord of source
-    brightest_pixel_x += min_coords[1] # Add the min col / x coord of source
-    brightest_pixel_RA, brightest_pixel_DEC = W.all_pix2world(brightest_pixel_x,
+    brightest_pixel_x, brightest_pixel_y = np.unravel_index(np.argmax(mat, axis=None), mat.shape)
+    brightest_pixel = mat[(brightest_pixel_x, brightest_pixel_y)]
+    brightest_pixel_x += min_coords[0] # Add the min x coord of source
+    brightest_pixel_y += min_coords[1] # Add the min y coord of source
+    brightest_pixel_RA, brightest_pixel_DEC = w.all_pix2world(brightest_pixel_x,
                                                               brightest_pixel_y, 0, ra_dec_order=True)
     
-    # Calculate center of mass
-    center_of_mass_y, center_of_mass_x = np.sum(np.sum(np.array(( (y + min_coords[0]),
-                                                                  (x + min_coords[1]) )) * mat, axis=1), axis=1) / sum_mat 
-    center_of_mass_RA, center_of_mass_DEC = W.all_pix2world(center_of_mass_x,
+    # center of mass = sum(( coords(x, y) * mat(inten) )) / integrated_intensity
+    center_of_mass_x, center_of_mass_y = np.sum(np.sum(np.array(( (x + min_coords[0]),
+                                                                  (y + min_coords[1]) )) * mat, axis=1), axis=1) / sum_mat 
+   
+    # center_of_mass = np.around(center_of_mass, 0).astype(int)
+
+    center_of_mass_RA, center_of_mass_DEC = w.all_pix2world(center_of_mass_x,
                                                             center_of_mass_y, 0, ra_dec_order=True)
     
     # Define parameters of gaussian
-    x_m = center_of_mass_x - min_coords[1]
-    y_m = center_of_mass_y - min_coords[0]
-    x_s = max_coords[1] - min_coords[1] + 1 # max_coords[0] - min_coords[0] + 1
-    y_s = max_coords[0] - min_coords[0] + 1 # max_coords[1] - min_coords[1] + 1
+    x_m = center_of_mass_x - min_coords[0]
+    y_m = center_of_mass_y - min_coords[1]
+    x_s = max_coords[0] - min_coords[0] + 1
+    y_s = max_coords[1] - min_coords[1] + 1
     total_pixels = np.sum(mat > 0)
     
     # Define model
@@ -150,9 +151,9 @@ def create_catalogue_submatrix(hdul, label, min_coords, max_coords, mat, deconv)
     # best_fit_gauss = fitter(mod, x, y, mat) # Fit model
 
     # Define centers of gaussian fit
-    center_of_gaus_fit_x = best_fit_gauss.x_mean.value + min_coords[1]
-    center_of_gaus_fit_y = best_fit_gauss.y_mean.value + min_coords[0]
-    center_of_gaus_fit_RA, center_of_gaus_fit_DEC = W.all_pix2world(center_of_gaus_fit_x,
+    center_of_gaus_fit_x = best_fit_gauss.x_mean.value + min_coords[0]
+    center_of_gaus_fit_y = best_fit_gauss.y_mean.value + min_coords[1]
+    center_of_gaus_fit_RA, center_of_gaus_fit_DEC = w.all_pix2world(center_of_gaus_fit_x,
                                                                     center_of_gaus_fit_y, 0, ra_dec_order=True)
     
     # Define axis and theta of fit
@@ -250,12 +251,12 @@ def main():
              ]
                           
     # Save the RDDs as one (coaslesce=1) csv 
-    if os.path.isdir(out + 'catalogue_v5'):
-        shutil.rmtree(out + 'catalogue_v5')
+    if os.path.isdir(out + 'catalogue_v4'):
+        shutil.rmtree(out + 'catalogue_v4')
 
 
     start = time.time()
-    catalogue_data.map(lambda c: toCSVLine(c[0], c[1])).coalesce(1, shuffle = True).saveAsTextFile(out + 'catalogue_v5')
+    catalogue_data.map(lambda c: toCSVLine(c[0], c[1])).coalesce(1, shuffle = True).saveAsTextFile(out + 'catalogue_v4')
     print('Execution time:', ((time.time()-start) / 60 ), 'minutes')
     
     # Exit and stop the sparkcontext

@@ -76,7 +76,7 @@ def crop(r, num_pxl):
     print('Ra:', r['brightest_pixel_RA'])
     print('Dec:', r['brightest_pixel_DEC'])
     print('Noise Threshold:', threshold)
-    r_crop = r_img[top:bottom, left:right]
+    r_crop = r_img[left:right, top:bottom]
     cmap = sources.make_cmap(random_state=12345)
     return r_crop, rect, cmap
 
