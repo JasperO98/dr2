@@ -1,0 +1,3 @@
+First source is key
+(source0, source1, source2, ...)
+source = (mosaic_id, object)
