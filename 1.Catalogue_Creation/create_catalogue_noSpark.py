@@ -17,7 +17,7 @@ import time
 
 import warnings
 warnings.filterwarnings("ignore")
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 # The function to create the catalogue
