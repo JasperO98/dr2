@@ -21,7 +21,7 @@ These overlapping sources are unwanted and should be removed/filtered.
 This directory also contains filter_overlaps_noSpark.ipynb which is again the implementation of previous script but without PySpark.
 You should read the report if you want to know more about the algorithm to detect the overlapping sources.
 
-# 3. Artifacts.
+# 3. Artifacts
 In this directory the catalogue from the previous step is taken and the artifacts are filtered sources.
 These are artificial sources detected by the algorithms in step 1, caused bu highly intense sources.
 These should also be removed/filtered, since these are not actual objects in the sky.
