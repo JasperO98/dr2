@@ -33,3 +33,6 @@ In this step the filtered catalogue is analysed and results are produced for our
 This directory contains the scripts explore_catalogue.ipynb and create_mosaic_images.ipynb.
 In explore_catalogue.ipynb it is possible to find sources of interest in the final catalogue.
 However, this first requires you to execute create_mosaic_images.ipynb to create the actual high resolution png file that contains the mosaics where the sources are located. This allows you to see the actual detected source.
+
+# 0. Extra scripts
+In the directories Deblending and Segmentation scripts are found which test parameters for segmentation of the sources and deblending sources. At the start of the project we wanted to explore the use and effect of deblending however we found that it was not usefull to apply it directly on all sources, therefore we did not implement it in our catalogue. However, in some cases deblending is quite usefull and should be used and it can also create interesting sources to look at.
