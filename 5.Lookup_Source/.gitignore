@@ -1,2 +1,4 @@
 mosaic_images*
 .ipynb_checkpoints
+out*
+artifacts_P000+3

@@ -248,18 +248,21 @@ def main():
              ]
                           
     # Save the RDDs as one (coaslesce=1) csv 
-    if os.path.isdir(out + 'catalogue_v5'):
-        shutil.rmtree(out + 'catalogue_v5')
+    if os.path.isdir(out + 'catalogue_v6.0'):
+        shutil.rmtree(out + 'catalogue_v6.0')
 
 
     start = time.time()
-    catalogue_data.map(lambda c: toCSVLine(c[0], c[1])).coalesce(1, shuffle = True).saveAsTextFile(out + 'catalogue_v5')
+    catalogue_data.map(lambda c: toCSVLine(c[0], c[1])).coalesce(1, shuffle = True).saveAsTextFile(out + 'catalogue_v6.0')
     print('Execution time:', ((time.time()-start) / 60 ), 'minutes')
+    
+    shutil.move(out + "catalogue_v6.0/part-00000", out + 'catalogue_v6.0.csv')
+    shutil.rmtree(out + 'catalogue_v6.0')
     
     # Exit and stop the sparkcontext
     sc.stop()
 
 main()
 
-
+ 
 
